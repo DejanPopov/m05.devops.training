@@ -1,48 +1,67 @@
-# This is a simple Semaphore configuration file
-# For more information about Semaphore configuration visit:
-# https://docs.semaphoreci.com/reference/pipeline-yaml-reference/
+version: v1.0
+name: Module 5 - Deployment (g3)
 
-version: v1.0  # Semaphore configuration version
-name: "🎯 Simple CI Pipeline"  # Pipeline display name
-
-# Define the machine type and OS image
 agent:
   machine:
-    type: f1-standard-4
+    type: f1-standard-2
     os_image: ubuntu2404
 
-# Configure when to stop the pipeline early
 fail_fast:
   stop:
-    when: branch != 'main'  # Stop all blocks if a job fails on non-main branches
+    when: "true"
+
 auto_cancel:
   running:
-    when: branch != 'main'  # Cancel running pipelines on non-main branches
+    when: "branch != 'main'"
   queued:
-    when: branch = 'main'   # Cancel queued pipelines on main branch
+    when: "branch = 'main'"
 
-# Pipeline blocks represent groups of jobs that can run in parallel
 blocks:
-  # Block for testing
-  - name: "🧪 Test"
+  - name: Build and Push Image
     dependencies: []
     task:
+      secrets:
+        - name: dockerhub
       jobs:
-        - name: "🟢 Run Tests"
+        - name: Docker build & push
           commands:
-            - echo "Checking out code..."
-            - echo "Installing dependencies..."
-            - echo "Running test suite..."
-            - echo "Tests completed successfully!"
+            - checkout
+            - cd 1-deployment
+            - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+            - docker build -t $DOCKERHUB_USERNAME/my-flask-image:latest .
+            - docker push $DOCKERHUB_USERNAME/my-flask-image:latest
 
-  # Block for deployment
-  - name: "🚀 Deploy"
-    dependencies: ["🧪 Test"]  # Only deploy if tests pass
+  - name: Deploy to Kubernetes
+    dependencies: ["Build and Push Image"]
     task:
+      secrets:
+        - name: kubeconfig
+      prologue:
+        commands:
+          - checkout
+          - cd 1-deployment
+          - mkdir -p ~/.kube
+          - echo "$KUBECONFIG_BASE64" | base64 -d > ~/.kube/config
+          - chmod 600 ~/.kube/config
+          - kubectl create namespace g3 || true
+          - kubectl config set-context --current --namespace=g3
       jobs:
-        - name: "📦 Deploy to Production"
+        - name: Apply manifests
           commands:
-            - echo "Building application..."
-            - echo "Running security checks..."
-            - echo "Deploying to production..."
-            - echo "Deployment completed successfully!"
+            - kubectl apply -f deployment.yml
+            - kubectl apply -f service.yml
+            - kubectl rollout status deployment/flask-app
+
+  - name: Verify
+    dependencies: ["Deploy to Kubernetes"]
+    task:
+      secrets:
+        - name: kubeconfig
+      jobs:
+        - name: Get service info
+          commands:
+            - mkdir -p ~/.kube
+            - echo "$KUBECONFIG_BASE64" | base64 -d > ~/.kube/config
+            - chmod 600 ~/.kube/config
+            - kubectl config set-context --current --namespace=g3
+            - kubectl get svc flask-app
