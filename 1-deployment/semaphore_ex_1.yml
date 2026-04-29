@@ -1,21 +1,17 @@
 version: v1.0
-name: Module 5 - Blue/Green (g3)
-
+name: Module 5 - Deployment (g3)
 agent:
   machine:
     type: f1-standard-2
     os_image: ubuntu2404
-
 fail_fast:
   stop:
-    when: "true"
-
+    when: 'true'
 auto_cancel:
   running:
-    when: "branch != 'main'"
+    when: branch != 'main'
   queued:
-    when: "branch = 'main'"
-
+    when: branch = 'main'
 blocks:
   - name: Build and Push Image
     dependencies: []
@@ -26,31 +22,31 @@ blocks:
         - name: Docker build & push
           commands:
             - checkout
-            - cd 2-blue-green-deployment
+            - cd 1-deployment
             - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-            - docker build -t $DOCKERHUB_USERNAME/my-flask-image:latest .
-            - docker push $DOCKERHUB_USERNAME/my-flask-image:latest
-
-  - name: Deploy Blue
-    dependencies: ["Build and Push Image"]
+            - 'docker build -t $DOCKERHUB_USERNAME/my-flask-image:latest .'
+            - 'docker push $DOCKERHUB_USERNAME/my-flask-image:latest'
+  - name: Deploy to Kubernetes
+    dependencies:
+      - Build and Push Image
     task:
       secrets:
         - name: kubeconfig
       prologue:
         commands:
           - checkout
-          - cd 2-blue-green-deployment
+          - cd 1-deployment
           - kubectl create namespace g3 || true
           - kubectl config set-context --current --namespace=g3
       jobs:
-        - name: Apply blue manifests
+        - name: Apply manifests
           commands:
-            - kubectl apply -f deployment-blue.yml
-            - kubectl apply -f service-blue.yml
-            - kubectl rollout status deployment/flask-app-blue
-
-  - name: Verify Blue
-    dependencies: ["Deploy Blue"]
+            - kubectl apply -f deployment.yml
+            - kubectl apply -f service.yml
+            - kubectl rollout status deployment/flask-app
+  - name: Verify
+    dependencies:
+      - Deploy to Kubernetes
     task:
       secrets:
         - name: kubeconfig
@@ -59,7 +55,3 @@ blocks:
           commands:
             - kubectl config set-context --current --namespace=g3
             - kubectl get svc flask-app
-
-promotions:
-  - name: Promote to Green
-    pipeline_file: promote-green.yml
