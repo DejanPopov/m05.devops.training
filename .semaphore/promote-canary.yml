@@ -1,0 +1,36 @@
+version: v1.0
+name: Promote to Canary (g3)
+
+agent:
+  machine:
+    type: f1-standard-2
+    os_image: ubuntu2404
+
+blocks:
+  - name: Deploy Canary
+    dependencies: []
+    task:
+      secrets:
+        - name: kubeconfig
+      prologue:
+        commands:
+          - checkout
+          - cd 3-canary-deployment
+          - kubectl config set-context --current --namespace=g3
+      jobs:
+        - name: Apply canary manifests
+          commands:
+            - kubectl apply -f deployment-canary.yml
+            - kubectl rollout status deployment/flask-app-canary
+
+  - name: Verify Canary
+    dependencies: ["Deploy Canary"]
+    task:
+      secrets:
+        - name: kubeconfig
+      jobs:
+        - name: Get service info & pods
+          commands:
+            - kubectl config set-context --current --namespace=g3
+            - kubectl get svc flask-app
+            - kubectl get pods -l app=flask-app -o wide

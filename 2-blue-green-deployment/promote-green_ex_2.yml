@@ -1,0 +1,36 @@
+version: v1.0
+name: Promote to Green (g3)
+
+agent:
+  machine:
+    type: f1-standard-2
+    os_image: ubuntu2404
+
+blocks:
+  - name: Deploy Green
+    dependencies: []
+    task:
+      secrets:
+        - name: kubeconfig
+      prologue:
+        commands:
+          - checkout
+          - cd 2-blue-green-deployment
+          - kubectl config set-context --current --namespace=g3
+      jobs:
+        - name: Apply green manifests
+          commands:
+            - kubectl apply -f deployment-green.yml
+            - kubectl apply -f service-green.yml
+            - kubectl rollout status deployment/flask-app-green
+
+  - name: Verify Green
+    dependencies: ["Deploy Green"]
+    task:
+      secrets:
+        - name: kubeconfig
+      jobs:
+        - name: Get service info
+          commands:
+            - kubectl config set-context --current --namespace=g3
+            - kubectl get svc flask-app
