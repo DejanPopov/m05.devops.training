@@ -36,9 +36,6 @@ blocks:
         commands:
           - checkout
           - cd 1-deployment
-          - mkdir -p ~/.kube
-          - echo "$KUBECONFIG_BASE64" | base64 -d > ~/.kube/config
-          - chmod 600 ~/.kube/config
           - kubectl create namespace g3 || true
           - kubectl config set-context --current --namespace=g3
       jobs:
@@ -56,8 +53,5 @@ blocks:
       jobs:
         - name: Get service info
           commands:
-            - mkdir -p ~/.kube
-            - echo "$KUBECONFIG_BASE64" | base64 -d > ~/.kube/config
-            - chmod 600 ~/.kube/config
             - kubectl config set-context --current --namespace=g3
             - kubectl get svc flask-app
