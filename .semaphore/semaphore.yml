@@ -1,7 +1,6 @@
 version: v1.0
 name: Module 5 - Canary (g3)
 
-
 agent:
   machine:
     type: f1-standard-2
@@ -27,20 +26,12 @@ blocks:
         - name: Docker build & push
           commands:
             - checkout
-<<<<<<< HEAD
-            - cd 2-blue-green-deployment
-=======
             - cd 3-canary-deployment
->>>>>>> 297d0b4 (Exercise update)
             - echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
             - docker build -t $DOCKERHUB_USERNAME/my-flask-image:latest .
             - docker push $DOCKERHUB_USERNAME/my-flask-image:latest
 
-<<<<<<< HEAD
-  - name: Deploy Blue
-=======
   - name: Deploy Stable
->>>>>>> 297d0b4 (Exercise update)
     dependencies: ["Build and Push Image"]
     task:
       secrets:
@@ -48,20 +39,6 @@ blocks:
       prologue:
         commands:
           - checkout
-<<<<<<< HEAD
-          - cd 2-blue-green-deployment
-          - kubectl create namespace g3 || true
-          - kubectl config set-context --current --namespace=g3
-      jobs:
-        - name: Apply blue manifests
-          commands:
-            - kubectl apply -f deployment-blue.yml
-            - kubectl apply -f service-blue.yml
-            - kubectl rollout status deployment/flask-app-blue
-
-  - name: Verify Blue
-    dependencies: ["Deploy Blue"]
-=======
           - cd 3-canary-deployment
           - kubectl create namespace g3 || true
           - kubectl config set-context --current --namespace=g3
@@ -74,7 +51,6 @@ blocks:
 
   - name: Verify Stable
     dependencies: ["Deploy Stable"]
->>>>>>> 297d0b4 (Exercise update)
     task:
       secrets:
         - name: kubeconfig
@@ -85,10 +61,5 @@ blocks:
             - kubectl get svc flask-app
 
 promotions:
-<<<<<<< HEAD
-  - name: Promote to Green
-    pipeline_file: promote-green.yml
-=======
   - name: Promote to Canary
     pipeline_file: promote-canary.yml
->>>>>>> 297d0b4 (Exercise update)
